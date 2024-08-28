@@ -22,8 +22,15 @@ jobs:
           script: |
             const { execSync } = require('child_process');
             const tag = context.ref.replace('refs/tags/', '');
-            const previousTag = execSync('git describe --tags --abbrev=0 ' + tag + '^').toString().trim();
-            const changes = execSync(`git log ${previousTag}..${tag} --pretty=format:'- %s'`).toString().trim();
+            let previousTag;
+            try {
+              previousTag = execSync('git describe --tags --abbrev=0 ' + tag + '^').toString().trim();
+            } catch (error) {
+              previousTag = ''; // Handle the case where there is no previous tag
+            }
+            const changes = previousTag 
+              ? execSync(`git log ${previousTag}..${tag} --pretty=format:'- %s'`).toString().trim()
+              : execSync(`git log ${tag} --pretty=format:'- %s'`).toString().trim();
             return changes;
 
       - name: Create Release
