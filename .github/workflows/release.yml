@@ -4,9 +4,8 @@
 name: Release
 on:
   push:
-    # Sequence of patterns matched against refs/tags
     tags:
-      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+      - 'v*'
 
 jobs:
   release:
@@ -15,17 +14,27 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+
+      - name: Generate Release Notes
+        id: generate_notes
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { context } = require('@actions/github');
+            const { execSync } = require('child_process');
+            const tag = context.ref.replace('refs/tags/', '');
+            const previousTag = execSync('git describe --tags --abbrev=0 ' + tag + '^').toString().trim();
+            const changes = execSync(`git log ${previousTag}..${tag} --pretty=format:'- %s'`).toString().trim();
+            return changes;
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref_name }}
           release_name: Release ${{ github.ref_name }}
-          body: |
-            Changes in this Release
-            - First Change
-            - Second Change
+          body: ${{ steps.generate_notes.outputs.result }}
           draft: false
           prerelease: false
